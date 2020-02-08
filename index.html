@@ -13,15 +13,15 @@
             }
 
             form {
-                position: fixed;
-                bottom: 1%;
+                vertical-align: bottom;
                 width: 100%;
+                margin: 5;
+                float: left;
             }
 
             form input{
                 border: 0;
                 padding: 10px;
-                width: "*";
                 color: white;
                 font-size: 15px;
                 background: rgba(255, 255, 255, 0.3);
@@ -29,7 +29,6 @@
             }
 
             form button {
-                width: 100;
                 background: #FF6E48;
                 font-size: 15px;
                 color: white;
@@ -37,17 +36,18 @@
             }
 
             #container {height: 98%; width:100%; font-size: 0;}
-            #left, #middle, #right {display: inline-block; *display: inline; zoom: 1; vertical-align: top; font-size: 15px; padding: 5px}
-            #left {width: 10%; }
-            #middle {width: 70%; }
-            #right {width: 15%; }
+            #chat, #chatSend {display:flow-root; *display: inline; zoom: 1; font-size: 15px; padding: 5px; bottom: 30px}
+            #left, #middle, #right {display: inline-block; *display: inline; zoom: 1; font-size: 15px; padding: 5px}
+            #left {width: 10%; vertical-align: top;}
+            #middle {width: 70%; vertical-align: top;}
+            #right {width: 15%; vertical-align: bottom; position:relative;}
 
             #messages {
                 list-style-type: none;
-                width: 300;
                 margin: 0;
-                padding: 0;
+                padding: 10;
                 font-size: 15;
+                bottom: 20;
             }
 
             #toolbox li {
@@ -116,7 +116,6 @@
                 return false;
             });
 
-
             window.addEventListener('load', () => {
                 const canvas = document.querySelector("#canvas");
                 const context = canvas.getContext("2d");
@@ -138,11 +137,20 @@
                    context.lineCap = "round";
                    context.strokeStyle = "black";
 
-                   context.lineTo(e.clientX - rect.left, e.clientY - rect.top);
-                   context.stroke();
-                   context.beginPath();
-                   context.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+                   socket.emit('line added', e.clientX - rect.left, e.clientY - rect.top);
                 }
+
+                socket.on('new line', function(xPos, yPos) {
+                    context.lineWidth = 10;
+                    context.lineCap = "round";
+                    context.strokeStyle = "black";
+
+                    context.lineTo(xPos,  yPos);
+                    context.stroke();
+                    context.beginPath();
+                    context.moveTo(xPos, yPos);
+                    context.beginPath();
+                });
 
                 canvas.addEventListener("mousedown", startPosition);
                 canvas.addEventListener("mouseup", finishedPosition);
@@ -172,18 +180,12 @@
             <div id="middle">
                 <canvas id="canvas"></canvas>
             </div>
-            <div id="right">
-                <ul id="messages">
-                </ul>
-                <form action="">
-                    <input id="m" autocomplete="off" /><button>Send</button>
-                </form>
+            <div id="right" class="rounded">
+                    <ul id="messages"></ul>
+                    <form action="" >
+                        <input id="m" autocomplete="off"/> <button>Send</button>
+                    </form>
             </div>
         </div>
-        
-        
     </body>
 </html>
-
-
-
