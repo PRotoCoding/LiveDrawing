@@ -6,7 +6,7 @@
                 margin: 0;
                 padding: 0;
             }
-
+            nav ul{ overflow:hidden; overflow-y:scroll; height:200; max-height: 200px;}
             body {
                 font: 18px Helvetica, Arial;
                 background-color: #1b2431;
@@ -40,8 +40,7 @@
             #left, #middle, #right {display: inline-block; *display: inline; zoom: 1; font-size: 15px; padding: 5px}
             #left {width: 10%; vertical-align: top;}
             #middle {width: 70%; vertical-align: top;}
-            #right {width: 15%; vertical-align: bottom; position:relative;}
-
+            #right {width: 15%; vertical-align: bottom; position:relative; overflow-x:hidden; overflow-y: auto; max-height: 100%;}
             #messages {
                 list-style-type: none;
                 margin: 0;
@@ -95,7 +94,65 @@
     <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
     <script>
         $(function () {
+            const canvas = document.querySelector("#canvas");
+            const context = canvas.getContext("2d");
+            canvas.height = document.getElementById("middle").clientHeight;
+            canvas.width = document.getElementById("middle").clientWidth;
+
+            var lastX;
+            var lastY;
+
+            var rect = document.getElementById("canvas").getBoundingClientRect();
+            let painting = false;
+            let firstDraw = false;
+            let drawingEnabled = false;
+
             var socket = io();
+
+            function startPosition(e) {
+                painting = true;
+                firstDraw = true;
+                draw(e);
+            }
+            function finishedPosition() {
+                painting = false;
+                context.beginPath();
+            }
+            function draw(e) {
+                if(!painting) return;
+                context.lineWidth = 10;
+                context.lineCap = "round";
+                context.strokeStyle = "black";
+                if(firstDraw) {
+                    socket.emit('dot added', e.clientX - rect.left, e.clientY - rect.top);
+                }
+                else {
+                    socket.emit('line added', lastX, lastY, e.clientX - rect.left, e.clientY - rect.top);
+                }
+                firstDraw = false;
+                lastX = e.clientX - rect.left;
+                lastY = e.clientY - rect.top;
+            }
+
+            socket.on('new line', function(lastX, lastY, xPos, yPos) {
+                context.lineWidth = 10;
+                context.lineCap = "round";
+                context.strokeStyle = "black";
+                context.beginPath();
+                context.moveTo(lastX, lastY);
+                context.lineTo(xPos,  yPos);
+                context.stroke();
+            });
+
+            socket.on('new dot', function(xPos, yPos) {
+                context.lineWidth = 10;
+                context.lineCap = "round";
+                context.strokeStyle = "black";
+                context.beginPath();
+                context.moveTo(xPos, yPos);
+                context.lineTo(xPos,  yPos);
+                context.stroke();
+            });
 
             socket.on('user join', function(msg) {
                 $('#messages').append($('<li class="new-user"/>').text('Neuer Nutzer hat den Server betreten.'));
@@ -109,49 +166,7 @@
                 $('#messages').append($('<li/>').text(msg));
             });
 
-            $('form').submit(function (e) {
-                e.preventDefault();
-                socket.emit('chat message', $('#m').val());
-                $('#m').val('');
-                return false;
-            });
-
-            window.addEventListener('load', () => {
-                const canvas = document.querySelector("#canvas");
-                const context = canvas.getContext("2d");
-                canvas.height = document.getElementById("middle").clientHeight;
-                canvas.width = document.getElementById("middle").clientWidth;
-                var rect = document.getElementById("canvas").getBoundingClientRect();
-                let painting = false;
-                function startPosition(e) {
-                    painting = true;
-                    draw(e);
-                }
-                function finishedPosition() {
-                    painting = false;
-                    context.beginPath();
-                }
-                function draw(e) {
-                   if(!painting) return;
-                   context.lineWidth = 10;
-                   context.lineCap = "round";
-                   context.strokeStyle = "black";
-
-                   socket.emit('line added', e.clientX - rect.left, e.clientY - rect.top);
-                }
-
-                socket.on('new line', function(xPos, yPos) {
-                    context.lineWidth = 10;
-                    context.lineCap = "round";
-                    context.strokeStyle = "black";
-
-                    context.lineTo(xPos,  yPos);
-                    context.stroke();
-                    context.beginPath();
-                    context.moveTo(xPos, yPos);
-                    context.beginPath();
-                });
-
+            socket.on('drawing data end', () => {
                 canvas.addEventListener("mousedown", startPosition);
                 canvas.addEventListener("mouseup", finishedPosition);
                 canvas.addEventListener("mousemove", draw);
@@ -160,6 +175,15 @@
                         context.restore();
                     }
                 });
+            });
+
+            socket.emit('request drawing data');
+
+            $('form').submit(function (e) {
+                e.preventDefault();
+                socket.emit('chat message', $('#m').val());
+                $('#m').val('');
+                return false;
             });
         });
     </script>
