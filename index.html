@@ -5,48 +5,67 @@
             *{
                 margin: 0;
                 padding: 0;
-                box-sizing: border-box;
             }
 
             body {
                 font: 18px Helvetica, Arial;
                 background-color: #1b2431;
-                width: 100%;
             }
 
             form {
                 position: fixed;
-                bottom: 0;
+                bottom: 1%;
                 width: 100%;
             }
 
             form input{
                 border: 0;
                 padding: 10px;
-                width: 85%;
+                width: "*";
                 color: white;
-                font-size: 25px;
+                font-size: 15px;
                 background: rgba(255, 255, 255, 0.3);
 
             }
 
             form button {
-                width: 15%;
+                width: 100;
                 background: #FF6E48;
-                font-size: 25px;
+                font-size: 15px;
                 color: white;
                 padding: 10px;
             }
 
+            #container {height: 98%; width:100%; font-size: 0;}
+            #left, #middle, #right {display: inline-block; *display: inline; zoom: 1; vertical-align: top; font-size: 15px; padding: 5px}
+            #left {width: 10%; }
+            #middle {width: 70%; }
+            #right {width: 15%; }
+
             #messages {
                 list-style-type: none;
+                width: 300;
                 margin: 0;
                 padding: 0;
+                font-size: 15;
             }
 
-            #messages li {
+            #toolbox li {
                 padding: 5px 10px;
                 color: #FF6E48;
+            }
+
+            #toolbox li:nth-child(odd) {
+                background: rgba(255,255,255,0.05);
+            }
+
+            #toolbox li {
+                padding: 5px 10px;
+                color: #FF6E48;
+            }
+
+            #messages li{
+                color: #FF6E48
             }
 
             #messages li:nth-child(odd) {
@@ -61,6 +80,13 @@
             #messages li.new-user {
                 color: green;
                 font-style: italic;
+            }
+
+            #canvas {
+                padding: 2px;
+                background: white;
+                width: 100%;
+                height: 100%;
             }
         </style>
     </head>
@@ -89,15 +115,73 @@
                 $('#m').val('');
                 return false;
             });
+
+
+            window.addEventListener('load', () => {
+                const canvas = document.querySelector("#canvas");
+                const context = canvas.getContext("2d");
+                canvas.height = document.getElementById("middle").clientHeight;
+                canvas.width = document.getElementById("middle").clientWidth;
+                var rect = document.getElementById("canvas").getBoundingClientRect();
+                let painting = false;
+                function startPosition(e) {
+                    painting = true;
+                    draw(e);
+                }
+                function finishedPosition() {
+                    painting = false;
+                    context.beginPath();
+                }
+                function draw(e) {
+                   if(!painting) return;
+                   context.lineWidth = 10;
+                   context.lineCap = "round";
+                   context.strokeStyle = "black";
+
+                   context.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+                   context.stroke();
+                   context.beginPath();
+                   context.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+                }
+
+                canvas.addEventListener("mousedown", startPosition);
+                canvas.addEventListener("mouseup", finishedPosition);
+                canvas.addEventListener("mousemove", draw);
+                document.addEventListener('keydown', function(event) {
+                    if(event.ctrlKey && event.key === 'z') {
+                        context.restore();
+                    }
+                });
+            });
         });
     </script>
 
     <body>
-        <ul id="messages">
-        </ul>
-        <form action="">
-            <input id="m" autocomplete="off" /><button>Send</button>
-        </form>
+        <div id="container">
+            <div id="left">
+                <p style="color: #FF6E48; font-size:18px; padding: 2px"><u>Toolbox</u></p> 
+                <ul id="toolbox">
+                    <li>Tool 1</li>
+                    <li>Tool 2</li>
+                    <li>Tool 3</li>
+                    <li>Tool 4</li>
+                    <li>Tool 5</li>
+                    <li>Tool 6</li>
+                </ul>
+            </div>
+            <div id="middle">
+                <canvas id="canvas"></canvas>
+            </div>
+            <div id="right">
+                <ul id="messages">
+                </ul>
+                <form action="">
+                    <input id="m" autocomplete="off" /><button>Send</button>
+                </form>
+            </div>
+        </div>
+        
+        
     </body>
 </html>
 
