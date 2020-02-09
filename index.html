@@ -177,16 +177,16 @@
                     width = slider.value;
                 }
 
-                var rect = document.getElementById("canvas").getBoundingClientRect();
                 let painting = false;
                 let firstDraw = false;
                 let drawingEnabled = false;
                 let drawingStepNumber = 0;
-
+                let nextUndoNumber = 0;
                 function startPosition(e) {
                     painting = true;
                     firstDraw = true;
                     drawingStepNumber = drawingStepNumber + 1;
+                    nextUndoNumber = drawingStepNumber;
                     draw(e);
                 }
                 function finishedPosition() {
@@ -196,34 +196,37 @@
                 function draw(e) {
                     if(!painting) return;
 
+                    var rect = document.getElementById("canvas").getBoundingClientRect();
                     if(firstDraw) {
-                        socket.emit('dot added', e.clientX - rect.left, e.clientY - rect.top, drawingStepNumber, color, width);
+                        socket.emit('dot added', (e.clientX - rect.left) / rect.width, (e.clientY - rect.top) / rect.height, drawingStepNumber, color, width);
                     }
                     else {
-                        socket.emit('line added', lastX, lastY, e.clientX - rect.left, e.clientY - rect.top, drawingStepNumber, color, width);
+                        socket.emit('line added', lastX, lastY, (e.clientX - rect.left) / rect.width, (e.clientY - rect.top) / rect.height, drawingStepNumber, color, width);
                     }
                     firstDraw = false;
-                    lastX = e.clientX - rect.left;
-                    lastY = e.clientY - rect.top;
+                    lastX = (e.clientX - rect.left) / rect.width;
+                    lastY = (e.clientY - rect.top) / rect.height;
                 }
 
                 socket.on('new line', function(lastX, lastY, xPos, yPos, color, width) {
+                    var rect = document.getElementById("canvas").getBoundingClientRect();
                     context.lineWidth = width;
                     context.lineCap = "round";
                     context.strokeStyle = color;
                     context.beginPath();
-                    context.moveTo(lastX, lastY);
-                    context.lineTo(xPos,  yPos);
+                    context.moveTo(lastX * rect.width, lastY * rect.height);
+                    context.lineTo(xPos * rect.width,  yPos * rect.height);
                     context.stroke();
                 });
 
                 socket.on('new dot', function(xPos, yPos, color, width) {
+                    var rect = document.getElementById("canvas").getBoundingClientRect();
                     context.lineWidth = width;
                     context.lineCap = "round";
                     context.strokeStyle = color;
                     context.beginPath();
-                    context.moveTo(xPos, yPos);
-                    context.lineTo(xPos,  yPos);
+                    context.moveTo(xPos * rect.width, yPos * rect.height);
+                    context.lineTo(xPos * rect.width,  yPos * rect.height);
                     context.stroke();
                 });
 
@@ -245,8 +248,10 @@
                     canvas.addEventListener("mousemove", draw);
                     document.addEventListener('keydown', function(event) {
                         if(event.ctrlKey && event.key === 'z') {
-                            socket.emit('undo request', drawingStepNumber);
-                            context.restore();
+                            if(nextUndoNumber > 0) {
+                                socket.emit('undo request', nextUndoNumber);
+                                nextUndoNumber = nextUndoNumber - 1;
+                            }
                         }
                     });
                 });

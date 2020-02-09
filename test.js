@@ -96,7 +96,7 @@ io.on('connection', function (socket, name) {
         if(userName == null) {
 
         } else {
-            console.log(userName, 'has left.');
+            console.log('"', userName, '" has left the server.');
             io.emit('user leave', userName);
         }
         
@@ -109,12 +109,12 @@ io.on('connection', function (socket, name) {
     });
     socket.on('line added', function(lastX, lastY, xPos, yPos, drawingStepNumber,strokeStyle, lineWidth) {
         DrawingStack.push(new DrawingStepLine(lastX,lastY,xPos,yPos,userName,drawingStepNumber,lineWidth,"butt",strokeStyle));
-        console.log('Line was added. User: ', userName, ' Num: ', drawingStepNumber, ' Width: ', lineWidth, ' Drawing Stack: ', DrawingStack.length);
+        //console.log('Line was added. User: ', userName, ' Num: ', drawingStepNumber, ' Width: ', lineWidth, ' Drawing Stack: ', DrawingStack.length);
         io.emit('new line', lastX, lastY, xPos, yPos, strokeStyle, lineWidth);
     });
     socket.on('dot added', function(xPos,yPos,drawingStepNumber,strokeStyle, lineWidth) {
         DrawingStack.push(new DrawingStep(xPos,yPos,userName,drawingStepNumber,lineWidth,"butt",strokeStyle));
-        console.log('Dot was added. User: ', userName, ' Num: ', drawingStepNumber, ' Width: ', lineWidth, ' Drawing Stack: ', DrawingStack.length);
+        //console.log('Dot was added. User: ', userName, ' Num: ', drawingStepNumber, ' Width: ', lineWidth, ' Drawing Stack: ', DrawingStack.length);
         io.emit('new dot', xPos, yPos, strokeStyle, lineWidth);
     })
     socket.on('request drawing data', function() {
@@ -125,11 +125,12 @@ io.on('connection', function (socket, name) {
     });
     socket.on('permission request', function(nm) {
         userName = nm;
-        console.log('"', userName, '" hat den Server betreten.');
+        console.log('"', userName, '" joined the server.');
         socket.emit('permission received');
         io.emit('user join', userName);
     });
     socket.on('undo request', function(number) {
+        console.log('"', userName, '" requested undo.');
         io.emit('clear permitted');
         var i = 0;
         while(i < DrawingStack.length) {
@@ -145,7 +146,9 @@ io.on('connection', function (socket, name) {
     });
 
     socket.on('clear request', function(password) {
+        console.log('"', userName, '" requested clear with password "', password, '".');
         if(password === 'clear') {
+            console.log('Clear for "', userName, '" permitted');
             DrawingStack.splice(0, DrawingStack.length);
             io.emit('clear permitted');
         }
