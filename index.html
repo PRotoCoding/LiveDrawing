@@ -87,126 +87,238 @@
                 width: 100%;
                 height: 100%;
             }
+
+            /* The slider itself */
+            .slider {
+            -webkit-appearance: none;  /* Override default CSS styles */
+            appearance: none;
+            width: 100%; /* Full-width */
+            height: 12px; /* Specified height */
+            background: #d3d3d3; /* Grey background */
+            outline: none; /* Remove outline */
+            opacity: 0.7; /* Set transparency (for mouse-over effects on hover) */
+            -webkit-transition: .2s; /* 0.2 seconds transition on hover */
+            transition: opacity .2s;
+            }
+
+            /* Mouse-over effects */
+            .slider:hover {
+            opacity: 1; /* Fully shown on mouse-over */
+            }
+
+            /* The slider handle (use -webkit- (Chrome, Opera, Safari, Edge) and -moz- (Firefox) to override default look) */
+            .slider::-webkit-slider-thumb {
+            -webkit-appearance: none; /* Override default look */
+            appearance: none;
+            width: 20px; /* Set a specific slider handle width */
+            height: 12px; /* Slider handle height */
+            background: #FF6E48; /* Green background */
+            cursor: pointer; /* Cursor on hover */
+            }
+
+            .slider::-moz-range-thumb {
+            width: 20px; /* Set a specific slider handle width */
+            height: 12px; /* Slider handle height */
+            background: #FF6E48; /* Green background */
+            cursor: pointer; /* Cursor on hover */
+            }
+
+            ::placeholder { /* Chrome, Firefox, Opera, Safari 10.1+ */
+            color: rgb(141, 140, 140);
+            opacity: 1; /* Firefox */
+            }
         </style>
+        <script src="https://cdn.jsdelivr.net/npm/@jaames/iro/dist/iro.min.js"></script>
     </head>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+    
     <script>
         $(function () {
-            const canvas = document.querySelector("#canvas");
-            const context = canvas.getContext("2d");
-            canvas.height = document.getElementById("middle").clientHeight;
-            canvas.width = document.getElementById("middle").clientWidth;
-
-            var lastX;
-            var lastY;
-
-            var rect = document.getElementById("canvas").getBoundingClientRect();
-            let painting = false;
-            let firstDraw = false;
-            let drawingEnabled = false;
-
             var socket = io();
+            var name;
 
-            function startPosition(e) {
-                painting = true;
-                firstDraw = true;
-                draw(e);
-            }
-            function finishedPosition() {
-                painting = false;
-                context.beginPath();
-            }
-            function draw(e) {
-                if(!painting) return;
-                context.lineWidth = 10;
-                context.lineCap = "round";
-                context.strokeStyle = "black";
-                if(firstDraw) {
-                    socket.emit('dot added', e.clientX - rect.left, e.clientY - rect.top);
-                }
-                else {
-                    socket.emit('line added', lastX, lastY, e.clientX - rect.left, e.clientY - rect.top);
-                }
-                firstDraw = false;
-                lastX = e.clientX - rect.left;
-                lastY = e.clientY - rect.top;
-            }
-
-            socket.on('new line', function(lastX, lastY, xPos, yPos) {
-                context.lineWidth = 10;
-                context.lineCap = "round";
-                context.strokeStyle = "black";
-                context.beginPath();
-                context.moveTo(lastX, lastY);
-                context.lineTo(xPos,  yPos);
-                context.stroke();
-            });
-
-            socket.on('new dot', function(xPos, yPos) {
-                context.lineWidth = 10;
-                context.lineCap = "round";
-                context.strokeStyle = "black";
-                context.beginPath();
-                context.moveTo(xPos, yPos);
-                context.lineTo(xPos,  yPos);
-                context.stroke();
-            });
-
-            socket.on('user join', function(msg) {
-                $('#messages').append($('<li class="new-user"/>').text('Neuer Nutzer hat den Server betreten.'));
-            });
-
-            socket.on('user leave', function(msg) {
-                $('#messages').append($('<li class="user-left"/>').text('Nutzer hat den Server verlassen.'));
-            });
-
-            socket.on('chat message', function(msg) {
-                $('#messages').append($('<li/>').text(msg));
-            });
-
-            socket.on('drawing data end', () => {
-                canvas.addEventListener("mousedown", startPosition);
-                canvas.addEventListener("mouseup", finishedPosition);
-                canvas.addEventListener("mousemove", draw);
-                document.addEventListener('keydown', function(event) {
-                    if(event.ctrlKey && event.key === 'z') {
-                        context.restore();
-                    }
-                });
-            });
-
-            socket.emit('request drawing data');
-
-            $('form').submit(function (e) {
+            $('#sendName').submit(function (e) {
                 e.preventDefault();
-                socket.emit('chat message', $('#m').val());
-                $('#m').val('');
+
+                socket.emit('permission request', $('#name').val());
+                $('#name').val('');
+                document.getElementById("myForm").style.visibility = "hidden";
                 return false;
             });
+
+            socket.on('permission received', () => {
+                const canvas = document.querySelector("#canvas");
+                const context = canvas.getContext("2d");
+                canvas.height = document.getElementById("middle").clientHeight;
+                canvas.width = document.getElementById("middle").clientWidth;
+
+                var lastX;
+                var lastY;
+                var colorPicker = document.getElementById("kb_selected_color");
+                var color = colorPicker.value;
+
+                document.getElementById("kb_selected_color").style.backgroundColor = colorPicker.value;
+                colorPicker.addEventListener("input", function() {
+                    document.getElementById("hex").innerHTML = "Color: " + colorPicker.value;
+                    document.getElementById("kb_selected_color").style.backgroundColor = colorPicker.value;
+                    color = colorPicker.value;
+                })
+
+                var slider = document.getElementById("widthSlider");
+                var output = document.getElementById("sliderValue");
+                output.innerHTML = "Width: " + slider.value + "px"; // Display the default slider value
+                var width = slider.value;
+
+                // Update the current slider value (each time you drag the slider handle)
+                slider.oninput = function() {
+                    output.innerHTML = "Width: " + this.value + "px";
+                    width = slider.value;
+                }
+
+                var rect = document.getElementById("canvas").getBoundingClientRect();
+                let painting = false;
+                let firstDraw = false;
+                let drawingEnabled = false;
+                let drawingStepNumber = 0;
+
+                function startPosition(e) {
+                    painting = true;
+                    firstDraw = true;
+                    drawingStepNumber = drawingStepNumber + 1;
+                    draw(e);
+                }
+                function finishedPosition() {
+                    painting = false;
+                    context.beginPath();
+                }
+                function draw(e) {
+                    if(!painting) return;
+
+                    if(firstDraw) {
+                        socket.emit('dot added', e.clientX - rect.left, e.clientY - rect.top, drawingStepNumber, color, width);
+                    }
+                    else {
+                        socket.emit('line added', lastX, lastY, e.clientX - rect.left, e.clientY - rect.top, drawingStepNumber, color, width);
+                    }
+                    firstDraw = false;
+                    lastX = e.clientX - rect.left;
+                    lastY = e.clientY - rect.top;
+                }
+
+                socket.on('new line', function(lastX, lastY, xPos, yPos, color, width) {
+                    context.lineWidth = width;
+                    context.lineCap = "round";
+                    context.strokeStyle = color;
+                    context.beginPath();
+                    context.moveTo(lastX, lastY);
+                    context.lineTo(xPos,  yPos);
+                    context.stroke();
+                });
+
+                socket.on('new dot', function(xPos, yPos, color, width) {
+                    context.lineWidth = width;
+                    context.lineCap = "round";
+                    context.strokeStyle = color;
+                    context.beginPath();
+                    context.moveTo(xPos, yPos);
+                    context.lineTo(xPos,  yPos);
+                    context.stroke();
+                });
+
+                socket.on('user join', function(userName) {
+                    $('#messages').append($('<li class="new-user"/>').text(userName + ' has joined.'));
+                });
+
+                socket.on('user leave', function(userName) {
+                    $('#messages').append($('<li class="user-left"/>').text(userName + ' has left.'));
+                });
+
+                socket.on('chat message', function(userName, msg) {
+                    $('#messages').append($('<li/>').text(userName + ": " + msg));
+                });
+
+                socket.on('drawing data end', () => {
+                    canvas.addEventListener("mousedown", startPosition);
+                    canvas.addEventListener("mouseup", finishedPosition);
+                    canvas.addEventListener("mousemove", draw);
+                    document.addEventListener('keydown', function(event) {
+                        if(event.ctrlKey && event.key === 'z') {
+                            socket.emit('undo request', drawingStepNumber);
+                            context.restore();
+                        }
+                    });
+                });
+
+                socket.emit('request drawing data');
+
+                socket.on('clear permitted', () => {
+                    context.clearRect(0, 0, canvas.width, canvas.height);
+                });
+
+                $('#sendMessage').submit(function (e) {
+                    e.preventDefault();
+                    socket.emit('chat message', $('#m').val());
+                    $('#m').val('');
+                    return false;
+                });
+
+                $('#clearField').submit(function (e) {
+                    e.preventDefault();
+                    socket.emit('clear request', $('#clearPassword').val());
+                    $('#m').val('');
+                    return false;
+                });
+                document.getElementById("sendMessage").style.visibility = "visible";
+                document.getElementById("toolbox").style.visibility = "visible";
+            });
+
         });
     </script>
 
     <body>
+
         <div id="container">
             <div id="left">
-                <p style="color: #FF6E48; font-size:18px; padding: 2px"><u>Toolbox</u></p> 
-                <ul id="toolbox">
-                    <li>Tool 1</li>
-                    <li>Tool 2</li>
-                    <li>Tool 3</li>
-                    <li>Tool 4</li>
-                    <li>Tool 5</li>
-                    <li>Tool 6</li>
+                
+                <ul id="toolbox" style="visibility: hidden;">
+                    <li>
+                        <p style="color: #FF6E48; font-size:18px; padding: 2px"><u>Toolbox</u></p> 
+                    </li>
+                    <li>
+                          <input type="color" id="kb_selected_color">
+                          <span id="hex" style="color: #FF6E48;">Color: #000000</span>
+                    </li>
+                    <li>
+                        <div class="slidecontainer">
+                            <input type="range" min="1" max="20" value="11" class="slider" id="widthSlider"> <p style="vertical-align:middle;" id="sliderValue">Value</p>
+                        </div>
+                    </li>
+                    <li>
+                        <form id="clearField" action="" >
+                            <input style="width: 150;" id="clearPassword" placeholder="Password = clear" autocomplete="off"> <button>Clear the whole fucking field</button>
+                        </form>
+                    </li>
                 </ul>
+                
             </div>
             <div id="middle">
                 <canvas id="canvas"></canvas>
             </div>
             <div id="right" class="rounded">
+                    <div class="form-popup" id="myForm">
+                        <form id="sendName" action="/action_page.php" class="form-container">
+                        <h1 style="color: #FF6E48;">Enter name to join</h1>
+                    
+                        <label for="userName" style="color: #FF6E48;"><b>Name</b></label>
+                        <input style="place" type="text" id="name" placeholder="Enter Name" name="userName" required>
+                    
+                        <button type="submit" class="btn">Join</button>
+                        </form>
+                    </div>
                     <ul id="messages"></ul>
-                    <form action="" >
+                    <form id="sendMessage" action="" style="visibility: hidden;" >
                         <input id="m" autocomplete="off"/> <button>Send</button>
                     </form>
             </div>
